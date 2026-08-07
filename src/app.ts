@@ -29,6 +29,35 @@ const fail = (e: unknown) =>
     ? json({ error: e.code, message: e.message }, e.status)
     : json({ error: "server_error", message: "Something went wrong. Nothing was saved." }, 500);
 
+
+/** Filename-safe slug for the download; never used as a path, only a Content-Disposition. */
+const slug = (title: string) =>
+  title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "document";
+
+type DocRow = {
+  id: string;
+  title: string;
+  filename: string;
+  requester_email: string;
+  status: string;
+  page_count: number;
+  latest_version: number;
+  created_at: Date;
+  completed_at: Date | null;
+};
+
+const docByRequesterToken = async (token: string): Promise<DocRow | null> => {
+  const [row] = await sql`SELECT * FROM documents WHERE requester_token = ${token}`;
+  return (row as DocRow) ?? null;
+};
+
+/** The working PDF: the latest signed version, or the original if nobody has signed. */
+const workingPdf = async (docId: string, version: number): Promise<Uint8Array<ArrayBuffer> | null> => {
+  const [row] = await sql`
+    SELECT pdf FROM document_files WHERE doc_id = ${docId} AND version_no = ${version}`;
+  return row ? new Uint8Array(row.pdf) : null;
+};
+
 /**
  * Exported without .listen() so tests can drive it with app.handle(new Request(...)) —
  * no port, no server, no teardown. src/index.ts is what actually listens.
@@ -98,6 +127,54 @@ export const app = new Elysia()
     } catch (e) {
       return fail(e);
     }
+  })
+
+  .get("/api/docs/:requesterToken", async ({ params }) => {
+    const doc = await docByRequesterToken(params.requesterToken);
+    if (!doc) return notFound();
+
+    const signers = await sql`
+      SELECT id, email, name, order_idx, token, status, signed_at
+      FROM signers WHERE doc_id = ${doc.id} ORDER BY order_idx`;
+
+    return json({
+      id: doc.id,
+      title: doc.title,
+      filename: doc.filename,
+      requesterEmail: doc.requester_email,
+      status: doc.status,
+      pageCount: doc.page_count,
+      latestVersion: doc.latest_version,
+      hasSignedVersion: doc.latest_version > 0,
+      createdAt: doc.created_at,
+      completedAt: doc.completed_at,
+      // signUrl is returned here and nowhere else: the requester is the one who has to
+      // distribute the links, and no signer route ever exposes another signer's token.
+      signers: signers.map((s: Record<string, unknown>) => ({
+        email: s.email,
+        name: s.name,
+        orderIdx: s.order_idx,
+        status: s.status,
+        signedAt: s.signed_at,
+        signUrl: `/s/${s.token}`,
+      })),
+    });
+  })
+
+  .get("/api/docs/:requesterToken/file", async ({ params }) => {
+    const doc = await docByRequesterToken(params.requesterToken);
+    if (!doc) return notFound();
+
+    const pdf = await workingPdf(doc.id, doc.latest_version);
+    if (!pdf) return notFound();
+
+    const suffix = doc.status === "completed" ? "signed" : `v${doc.latest_version}`;
+    return new Response(pdf, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="${slug(doc.title)}-${suffix}.pdf"`,
+      },
+    });
   })
 
   .all("/api/*", () => notFound())
