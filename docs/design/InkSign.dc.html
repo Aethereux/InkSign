@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="stylesheet" href="_ds/modernist-eca5b3b8-2ecd-4806-8de0-9a4fdbe973e6/styles.css"><script src="_ds/modernist-eca5b3b8-2ecd-4806-8de0-9a4fdbe973e6/_ds_bundle.js"></script><style>body{margin:0;background:#f3f2f2;color:#201e1d;font-family:Archivo,system-ui,sans-serif}a{color:#ec3013}a:hover{color:#ae1800}@keyframes om-spin{to{transform:rotate(360deg)}}@keyframes om-wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes om-pulse{0%,100%{opacity:1}50%{opacity:.25}}</style></helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#f3f2f2">
+  <header style="display:flex;align-items:center;gap:16px;padding:16px clamp(16px,4vw,32px);border-bottom:2px solid rgba(32,30,29,.4)">
+    <a href="InkSign - Landing.dc.html" style="display:flex;align-items:center;gap:9px;font:800 19px/1 Archivo,sans-serif;color:#201e1d;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true" style="display:block;flex:none"><rect width="24" height="24" fill="#ec3013"></rect><path d="M4 16.8h16" stroke="#f3f2f2" stroke-width="1.5"></path><path d="M6 19.2c2.7 0 2.2-11.4 6-11.4 3 0 1.4 8.6 4.4 8.6 1.3 0 1.9-.9 2.5-2" fill="none" stroke="#f3f2f2" stroke-width="2" stroke-linecap="round"></path></svg><span>InkSign</span></a>
+    <span style="margin-left:auto;font:600 11px/1 Archivo,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(32,30,29,.55)">{{ stepLabel }}</span>
+  </header>
+
+  <div aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">{{ announce }}</div>
+
+  <sc-if value="{{ isS1 }}" hint-placeholder-val="{{ true }}">
+    <sc-if value="{{ serverErr }}">
+      <div role="alert" style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff2ef;border-bottom:2px solid #ec3013;padding:14px clamp(16px,4vw,32px)">
+        <span style="font:800 11px/1.5 Archivo,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#ae1800;flex:none">Not sent</span>
+        <span style="font-size:13.5px;line-height:1.5;color:#7c1405">{{ serverErr }}</span>
+      </div>
+    </sc-if>
+
+    <main style="flex:1;width:100%;max-width:1180px;margin:0 auto;padding:clamp(20px,4vw,32px) clamp(16px,4vw,32px) 0;display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+      <div style="flex:1 1 540px;min-width:0;display:flex;flex-direction:column;gap:32px">
+        <section>
+          <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px;margin-bottom:20px">
+            <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">01</span>
+            <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Document</h2>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:20px">
+            <div class="field" style="flex:1 1 240px;min-width:0">
+              <label for="ik-title">Title</label>
+              <input id="ik-title" class="input" value="{{ fTitle }}" onInput="{{ onTitle }}" disabled="{{ busy }}" placeholder="Mutual NDA — Acme" style="min-height:42px;font-size:15px">
+            </div>
+            <div class="field" style="flex:1 1 240px;min-width:0">
+              <label for="ik-email">Your email</label>
+              <input id="ik-email" class="input" type="email" value="{{ fEmail }}" onInput="{{ onEmail }}" disabled="{{ busy }}" aria-describedby="ik-email-help" placeholder="you@company.com" style="min-height:42px;font-size:15px">
+              <p id="ik-email-help" style="font-size:11.5px;color:rgba(32,30,29,.55);margin:6px 0 0">Labels the request. No account needed.</p>
+            </div>
+          </div>
+          <div style="position:relative">
+            <div onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" aria-describedby="ik-file-err" style="border:2px solid rgba(32,30,29,.4);padding:26px;display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-content:center;min-height:148px">
+              <sc-if value="{{ noFile }}" hint-placeholder-val="{{ true }}">
+                <span style="font:800 19px/1.2 Archivo,sans-serif">Drop the PDF here</span>
+                <label class="btn btn-secondary" style="cursor:pointer;min-height:42px">Choose a file<input type="file" accept="application/pdf,.pdf" onChange="{{ onPick }}" disabled="{{ busy }}" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+              </sc-if>
+              <sc-if value="{{ fileName }}">
+                <div style="display:flex;align-items:center;gap:18px;width:100%;flex-wrap:wrap">
+                  <div style="min-width:0">
+                    <div style="font:800 19px/1.25 Archivo,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileName }}</div>
+                    <div style="font-size:12.5px;color:rgba(32,30,29,.55);margin-top:4px">{{ fileMeta }}</div>
+                  </div>
+                  <label class="btn btn-secondary" style="margin-left:auto;cursor:pointer;flex:none;min-height:42px">Replace<input type="file" accept="application/pdf,.pdf" onChange="{{ onPick }}" disabled="{{ busy }}" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+                </div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ drag }}">
+              <div style="position:absolute;inset:0;border:2px solid #ec3013;background:#fff2ef;display:flex;align-items:center;padding:0 26px;font:800 19px/1 Archivo,sans-serif;color:#ae1800;pointer-events:none">Drop to attach</div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ fileErr }}">
+            <p id="ik-file-err" role="alert" style="font-size:13px;line-height:1.5;color:#ae1800;margin:10px 0 0">{{ fileErr }}</p>
+          </sc-if>
+        </section>
+
+        <section>
+          <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px;margin-bottom:4px">
+            <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">02</span>
+            <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Signers</h2>
+            <span style="margin-left:auto;font-size:11.5px;color:rgba(32,30,29,.55)">{{ capNote }}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;padding:10px 0;border-bottom:2px solid rgba(32,30,29,.4)">
+            <span style="flex:0 0 82px;font:600 10px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:rgba(32,30,29,.55)">Order</span>
+            <span style="flex:1 1 200px;font:600 10px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:rgba(32,30,29,.55)">Email</span>
+            <span style="flex:1 1 140px;font:600 10px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:rgba(32,30,29,.55)">Name (optional)</span>
+            <span style="flex:0 0 38px"></span>
+          </div>
+          <sc-for list="{{ rows }}" as="row" hint-placeholder-count="2">
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(32,30,29,.4)">
+              <div style="flex:0 0 82px;display:flex;align-items:center;gap:8px">
+                <span style="width:28px;height:28px;background:#ec3013;color:#f3f2f2;display:grid;place-items:center;font:800 13px/1 Archivo,sans-serif;flex:none">{{ row.n }}</span>
+                <span style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:rgba(32,30,29,.5)">{{ row.short }}</span>
+              </div>
+              <input class="input" type="email" value="{{ row.email }}" onInput="{{ row.setEmail }}" disabled="{{ busy }}" aria-label="Signer email" placeholder="signer@company.com" style="flex:1 1 200px;min-width:0;min-height:42px">
+              <input class="input" value="{{ row.name }}" onInput="{{ row.setName }}" disabled="{{ busy }}" aria-label="Signer name, optional" placeholder="Name" style="flex:1 1 140px;min-width:0;min-height:42px">
+              <sc-if value="{{ row.canRemove }}">
+                <button type="button" class="btn btn-icon btn-ghost" onClick="{{ row.remove }}" disabled="{{ busy }}" aria-label="Remove signer" style="flex:0 0 38px;width:38px;height:38px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </sc-if>
+            </div>
+          </sc-for>
+          <button type="button" class="btn btn-secondary" onClick="{{ addSigner }}" disabled="{{ addDisabled }}" style="margin-top:16px;min-height:42px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>Add signer</button>
+        </section>
+      </div>
+
+      <aside style="flex:0 1 320px;min-width:280px;border:2px solid rgba(32,30,29,.4);padding:24px">
+        <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px;margin-bottom:18px">
+          <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">03</span>
+          <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Then</h2>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:grid;grid-template-columns:22px 1fr;gap:10px"><span style="font:800 12px/1.5 Archivo,sans-serif;color:rgba(32,30,29,.45)">01</span><span style="font-size:13px;line-height:1.5;color:rgba(32,30,29,.8)">You get one link per signer, plus a dashboard link of your own.</span></div>
+          <div style="display:grid;grid-template-columns:22px 1fr;gap:10px"><span style="font:800 12px/1.5 Archivo,sans-serif;color:rgba(32,30,29,.45)">02</span><span style="font-size:13px;line-height:1.5;color:rgba(32,30,29,.8)">Signers unlock in the order above — signer 2 waits for signer 1.</span></div>
+          <div style="display:grid;grid-template-columns:22px 1fr;gap:10px"><span style="font:800 12px/1.5 Archivo,sans-serif;color:rgba(32,30,29,.45)">03</span><span style="font-size:13px;line-height:1.5;color:rgba(32,30,29,.8)">The signed PDF is on your dashboard as soon as the first signature lands.</span></div>
+        </div>
+        <hr class="hr" style="margin:22px 0">
+        <p style="font-size:12px;line-height:1.55;color:rgba(32,30,29,.55);margin:0">There are no accounts. Your dashboard link is the only way back to a request, so keep it.</p>
+      </aside>
+    </main>
+
+    <div style="margin-top:32px;border-top:2px solid rgba(32,30,29,.4);display:flex;flex-wrap:wrap;align-items:stretch">
+      <sc-if value="{{ busy }}">
+        <button type="button" class="btn btn-primary" aria-disabled="true" style="pointer-events:none;flex:1 1 320px;justify-content:flex-start;padding:0 32px;height:64px;font-size:18px;gap:10px"><span style="width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;display:inline-block;animation:om-spin .7s linear infinite"></span>Sending…</button>
+      </sc-if>
+      <sc-if value="{{ notBusy }}" hint-placeholder-val="{{ true }}">
+        <button type="button" class="btn btn-primary" onClick="{{ submit }}" disabled="{{ submitDisabled }}" style="flex:1 1 320px;justify-content:flex-start;padding:0 32px;height:64px;font-size:18px">Send for signature</button>
+      </sc-if>
+      <span style="flex:1 1 260px;display:flex;align-items:center;padding:14px clamp(16px,4vw,28px);font-size:12px;line-height:1.45;color:rgba(32,30,29,.55);border-left:2px solid rgba(32,30,29,.4)">{{ hint }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isS2 }}">
+    <main style="flex:1;width:100%;max-width:1000px;margin:0 auto;padding:clamp(22px,4vw,36px) clamp(16px,4vw,32px) 0">
+      <h1 style="font-size:38px;letter-spacing:-.02em;margin:0 0 10px;max-width:24ch">Your request is out for signature.</h1>
+      <p style="font-size:15px;line-height:1.55;color:rgba(32,30,29,.7);max-width:64ch;margin:0">{{ s2Sub }}</p>
+      <hr class="hr" style="margin:26px 0">
+
+      <section style="margin-bottom:34px">
+        <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px">
+          <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">01</span>
+          <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Signer links</h2>
+          <span style="margin-left:auto;font-size:11.5px;color:rgba(32,30,29,.55)">Only signer 1's link works now — the rest unlock in order</span>
+        </div>
+        <sc-for list="{{ s2Links }}" as="link" hint-placeholder-count="2">
+          <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:16px 0;border-bottom:1px solid rgba(32,30,29,.4)">
+            <div style="flex:0 0 96px;display:flex;align-items:center;gap:9px">
+              <span style="width:28px;height:28px;background:#ec3013;color:#f3f2f2;display:grid;place-items:center;font:800 13px/1 Archivo,sans-serif;flex:none">{{ link.n }}</span>
+              <span style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:rgba(32,30,29,.5)">{{ link.state }}</span>
+            </div>
+            <div style="flex:1 1 260px;min-width:0">
+              <div style="font:800 14px/1.3 Archivo,sans-serif;margin-bottom:6px">{{ link.email }}</div>
+              <input class="input" readOnly="{{ true }}" value="{{ link.url }}" aria-label="Signing link" style="font-size:12.5px;letter-spacing:.01em;min-height:38px;background:#eae9e9">
+            </div>
+            <div style="flex:0 0 auto;display:flex;gap:8px;align-items:center">
+              <button type="button" class="btn btn-secondary" onClick="{{ link.copy }}" style="min-height:38px;width:112px;justify-content:flex-start">{{ link.copyLabel }}</button>
+              <a class="btn btn-ghost" href="InkSign - Signer.dc.html" style="min-height:38px">Open</a>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+
+      <section>
+        <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px;margin-bottom:0">
+          <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">02</span>
+          <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Your dashboard link</h2>
+        </div>
+        <div style="border:2px solid #ec3013;background:#fff2ef;padding:22px;margin-top:16px">
+          <p style="font:800 20px/1.25 Archivo,sans-serif;color:#7c1405;margin:0 0 12px;max-width:44ch">Save this link. It's the only way back to this request — there are no accounts.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <input class="input" readOnly="{{ true }}" value="{{ s2DashUrl }}" aria-label="Dashboard link" style="flex:1 1 320px;min-width:0;font-size:12.5px;letter-spacing:.01em;min-height:40px;background:#f3f2f2;border-color:#ec3013">
+            <button type="button" class="btn btn-primary" onClick="{{ copyDash }}" style="min-height:40px;flex:none;width:112px;justify-content:flex-start">{{ dashCopyLabel }}</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div style="margin-top:34px;border-top:2px solid rgba(32,30,29,.4);display:flex;flex-wrap:wrap;align-items:stretch">
+      <button type="button" class="btn btn-primary" onClick="{{ goDash }}" style="flex:1 1 320px;justify-content:flex-start;padding:0 32px;height:64px;font-size:18px">Open dashboard</button>
+      <button type="button" class="btn btn-secondary" onClick="{{ newRequest }}" style="flex:0 1 auto;justify-content:flex-start;padding:0 28px;height:64px;font-size:15px;border-width:0 0 0 2px;border-left:2px solid rgba(32,30,29,.4)">Create another request</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isS3 }}">
+    <sc-if value="{{ notFound }}">
+      <main style="flex:1;display:grid;place-items:center;padding:clamp(28px,6vw,48px) clamp(16px,4vw,32px)">
+        <div style="width:100%;max-width:520px;border:2px solid rgba(32,30,29,.4);padding:clamp(20px,4vw,32px)">
+          <p style="font:600 11px/1 Archivo,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#ae1800;margin:0 0 18px">Link not valid</p>
+          <h1 style="font-size:30px;line-height:1.12;letter-spacing:-.02em;margin:0 0 14px">This link isn't valid.</h1>
+          <p style="font-size:15px;line-height:1.6;color:rgba(32,30,29,.75);margin:0 0 26px;max-width:44ch">It may have been mistyped, or the request may have been removed. Dashboard links are long — check nothing was cut off when it was copied.</p>
+          <hr class="hr" style="margin:0 0 24px">
+          <a class="btn btn-primary" href="InkSign - Landing.dc.html" style="min-height:44px;padding:0 20px;font-size:15px;color:#f3f2f2">Go to InkSign</a>
+        </div>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ s3Loading }}">
+      <main style="flex:1;width:100%;max-width:1060px;margin:0 auto;padding:clamp(22px,4vw,36px) clamp(16px,4vw,32px)">
+        <div style="height:34px;width:60%;background:#eae9e9;margin-bottom:14px"></div>
+        <div style="height:16px;width:34%;background:#eae9e9;margin-bottom:34px"></div>
+        <div style="height:2px;background:rgba(32,30,29,.4);margin-bottom:22px"></div>
+        <div style="height:12px;background:#eae9e9;margin-bottom:26px"></div>
+        <div style="height:56px;background:#eae9e9;margin-bottom:2px"></div>
+        <div style="height:56px;background:#eae9e9;margin-bottom:2px"></div>
+        <div style="height:56px;background:#eae9e9"></div>
+        <p style="font-size:12px;color:rgba(32,30,29,.5);margin:18px 0 0">Loading the request…</p>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ s3Ready }}">
+      <sc-if value="{{ s3RefreshErr }}">
+        <div role="status" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#eae9e9;border-bottom:2px solid rgba(32,30,29,.4);padding:11px clamp(16px,4vw,32px)">
+          <span style="font:800 10.5px/1.5 Archivo,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(32,30,29,.6)">Offline</span>
+          <span style="font-size:13px;color:rgba(32,30,29,.7)">Couldn't refresh — retrying. Everything below is the last good copy.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ celebrate }}">
+        <div role="status" style="position:relative;overflow:hidden;background:#ec3013;color:#f3f2f2;padding:16px clamp(16px,4vw,32px)">
+          <div style="position:absolute;inset:0;background:#ae1800;transform-origin:left;animation:om-wipe .45s ease-out"></div>
+          <div style="position:relative;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span style="font:800 15px/1.2 Archivo,sans-serif">Everyone has signed.</span>
+            <span style="font-size:13px;opacity:.9">The final PDF is ready to download below.</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <main style="flex:1;width:100%;max-width:1060px;margin:0 auto;padding:clamp(22px,4vw,34px) clamp(16px,4vw,32px) 0">
+        <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:8px">
+          <h1 style="font-size:34px;letter-spacing:-.02em;margin:0;flex:1 1 380px;min-width:0">{{ docTitle }}</h1>
+          <sc-if value="{{ isPending }}">
+            <span class="tag tag-neutral" style="font:800 11px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;padding:8px 12px;flex:none">Pending</span>
+          </sc-if>
+          <sc-if value="{{ isCompleted }}">
+            <span class="tag" style="background:#ec3013;color:#f3f2f2;font:800 11px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;padding:8px 12px;flex:none">Completed</span>
+          </sc-if>
+        </div>
+        <p style="font-size:13px;color:rgba(32,30,29,.55);margin:0">{{ docMeta }}</p>
+        <hr class="hr" style="margin:24px 0 22px">
+
+        <div style="margin-bottom:34px">
+          <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+            <span style="font:800 30px/1 Archivo,sans-serif;letter-spacing:-.02em">{{ progressLabel }}</span>
+            <span style="font-size:13px;color:rgba(32,30,29,.6)">{{ waitingLabel }}</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(32,30,29,.5)">
+              <sc-if value="{{ isPending }}"><span style="width:7px;height:7px;background:#ec3013;display:block;animation:om-pulse 1.8s ease-in-out infinite"></span></sc-if>
+              {{ pollLabel }}
+            </span>
+          </div>
+          <div style="display:flex;gap:3px">
+            <sc-for list="{{ segments }}" as="seg" hint-placeholder-count="2">
+              <div style="flex:1;height:12px;position:relative;background:#d7d3d3">
+                <sc-if value="{{ seg.filled }}"><span style="position:absolute;inset:0;background:#ec3013"></span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <section style="margin-bottom:34px">
+          <div style="display:flex;align-items:baseline;gap:12px;border-bottom:2px solid rgba(32,30,29,.4);padding-bottom:8px">
+            <span style="font:800 22px/1 Archivo,sans-serif;color:#ec3013">01</span>
+            <h2 style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin:0">Signers</h2>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="table" style="table-layout:fixed;margin-top:2px;min-width:700px">
+            <thead>
+              <tr>
+                <th style="width:52px;padding-left:0">#</th>
+                <th>Signer</th>
+                <th style="width:112px">Status</th>
+                <th style="width:168px">Signed</th>
+                <th style="width:210px;padding-right:0">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ s3Rows }}" as="row" hint-placeholder-count="2">
+                <tr>
+                  <td style="padding-left:0"><span style="width:28px;height:28px;background:#ec3013;color:#f3f2f2;display:grid;place-items:center;font:800 13px/1 Archivo,sans-serif">{{ row.n }}</span></td>
+                  <td>
+                    <div style="font:800 14.5px/1.3 Archivo,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ row.email }}</div>
+                    <div style="font-size:11.5px;color:rgba(32,30,29,.55);margin-top:3px">{{ row.sub }}</div>
+                  </td>
+                  <td>
+                    <sc-if value="{{ row.signed }}"><span class="tag" style="background:#ec3013;color:#f3f2f2;font:800 10px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;padding:6px 10px">Signed</span></sc-if>
+                    <sc-if value="{{ row.pending }}"><span class="tag tag-neutral" style="font:800 10px/1 Archivo,sans-serif;letter-spacing:.09em;text-transform:uppercase;padding:6px 10px">Pending</span></sc-if>
+                  </td>
+                  <td style="font-size:12px;color:rgba(32,30,29,.6)" title="{{ row.abs }}">
+                    <sc-if value="{{ row.waiting }}"><span style="font:800 11px/1.35 Archivo,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#ae1800">Waiting on this signer</span></sc-if>
+                    <sc-if value="{{ row.rel }}">{{ row.rel }}</sc-if>
+                  </td>
+                  <td style="padding-right:0">
+                    <div style="display:flex;gap:4px;align-items:center">
+                      <button type="button" class="btn btn-ghost" onClick="{{ row.copy }}" style="flex:1 1 auto;justify-content:flex-start;text-align:left">{{ row.copyLabel }}</button>
+                      <a class="btn btn-ghost" href="InkSign - Signer.dc.html" style="flex:none">Open</a>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          </div>
+        </section>
+
+        <section style="margin-bottom:38px;border:2px solid rgba(32,30,29,.4);padding:22px;display:flex;flex-wrap:wrap;gap:18px;align-items:center">
+          <div style="flex:1 1 300px;min-width:0">
+            <h3 style="font-size:19px;margin:0 0 5px">{{ downloadTitle }}</h3>
+            <p style="font-size:12.5px;line-height:1.5;color:rgba(32,30,29,.6);margin:0">{{ downloadHelp }}</p>
+          </div>
+          <sc-if value="{{ canDownload }}">
+            <button type="button" class="btn btn-primary" onClick="{{ download }}" style="min-height:46px;padding:0 22px;font-size:15px;flex:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>{{ downloadLabel }}</button>
+          </sc-if>
+          <sc-if value="{{ noDownload }}">
+            <span style="font-size:12.5px;color:rgba(32,30,29,.5);flex:none;max-width:26ch">Nothing to download yet — no one has signed.</span>
+          </sc-if>
+        </section>
+
+      </main>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ dev }}">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:9px clamp(16px,4vw,32px);background:#eae9e9;border-top:2px solid rgba(32,30,29,.4)">
+      <span style="font:600 9.5px/1 Archivo,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(32,30,29,.45)">Screen</span>
+      <div style="display:flex;gap:2px">
+        <sc-for list="{{ devScreens }}" as="chip" hint-placeholder-count="3">
+          <button type="button" onClick="{{ chip.pick }}" style="position:relative;border:1px solid rgba(32,30,29,.28);background:transparent;color:#201e1d;font:600 10px/1 Archivo,sans-serif;letter-spacing:.07em;text-transform:uppercase;padding:6px 9px;cursor:pointer" style-hover="background:rgba(32,30,29,.09)">{{ chip.label }}<sc-if value="{{ chip.on }}"><span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:#ec3013"></span></sc-if></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ isS1 }}">
+        <span style="font:600 9.5px/1 Archivo,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(32,30,29,.45)">S1 states</span>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          <sc-for list="{{ devStates }}" as="chip" hint-placeholder-count="6">
+            <button type="button" onClick="{{ chip.pick }}" style="position:relative;border:1px solid rgba(32,30,29,.28);background:transparent;color:#201e1d;font:600 10px/1 Archivo,sans-serif;letter-spacing:.07em;text-transform:uppercase;padding:6px 9px;cursor:pointer" style-hover="background:rgba(32,30,29,.09)">{{ chip.label }}<sc-if value="{{ chip.on }}"><span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:#ec3013"></span></sc-if></button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isS3 }}">
+        <span style="font:600 9.5px/1 Archivo,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(32,30,29,.45)">Simulate</span>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          <sc-for list="{{ devSim }}" as="chip" hint-placeholder-count="2">
+            <button type="button" onClick="{{ chip.pick }}" disabled="{{ chip.off }}" style="border:1px solid rgba(32,30,29,.28);background:transparent;color:#201e1d;font:600 10px/1 Archivo,sans-serif;letter-spacing:.07em;text-transform:uppercase;padding:6px 9px;cursor:pointer" style-hover="background:rgba(32,30,29,.09)">{{ chip.label }}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showDevBar&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;signerCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;min&quot;:1,&quot;max&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Rules&quot;},&quot;maxFileMb&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:10,&quot;min&quot;:1,&quot;max&quot;:50,&quot;unit&quot;:&quot;MB&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Rules&quot;}}">
+const ORDINALS = ['Signs first', 'Signs second', 'Signs third', 'Signs fourth', 'Signs fifth'];
+const SHORT = ['1st', '2nd', '3rd', '4th', '5th'];
+const STATES = [['idle', 'Idle'], ['dragging', 'Dragging'], ['wrongtype', 'Wrong type'], ['toolarge', 'Too large'], ['uploading', 'Uploading'], ['error', 'Server error']];
+const NAMES = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson', 'Barbara Liskov'];
+const ORIGIN = 'https://inksign.app';
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SAMPLE = {
+  title: 'Mutual NDA — Acme × InkSign',
+  email: 'ops@inksign.app',
+  signers: [{ email: 'ada@acme.com', name: 'Ada Lovelace' }, { email: 'legal@inksign.app', name: '' }],
+  file: { name: 'mutual-nda-2026.pdf', meta: '2.4 MB · 4 pages', pages: 4 }
+};
+
+function tok(bytes) {
+  const a = new Uint8Array(bytes);
+  (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(a) : a.forEach((_, i) => a[i] = Math.floor(Math.random() * 256));
+  return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function rel(at, now) {
+  const s = Math.max(0, Math.round((now - new Date(at).getTime()) / 1000));
+  if (s < 10) return 'just now';
+  if (s < 60) return s + ' seconds ago';
+  const m = Math.round(s / 60);
+  if (m < 60) return m === 1 ? '1 minute ago' : m + ' minutes ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h === 1 ? '1 hour ago' : h + ' hours ago';
+  const d = Math.round(h / 24);
+  return d === 1 ? 'yesterday' : d + ' days ago';
+}
+function absTime(at) {
+  const d = new Date(at);
+  return d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' · ' + at;
+}
+function slug(t) {
+  return (t || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
+class Component extends DCLogic {
+  blankForm() {
+    return { title: '', email: '', signers: [{ email: '', name: '' }], file: null, ui: 'idle', drag: false, err: '' };
+  }
+  state = {
+    screen: 's1', form: this.blankForm(), doc: null, copied: '',
+    s3Loading: false, s3RefreshErr: false, notFound: false, celebrate: false, announce: '', now: Date.now()
+  };
+
+  componentDidMount() {
+    this.reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.tick = setInterval(() => {
+      if (this.state.screen === 's3' && !this.state.s3Loading) this.setState({ now: Date.now() });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.tick); [this.t1, this.t2, this.t3, this.t4].forEach(clearTimeout); }
+
+  form(p) { this.setState(s => ({ form: Object.assign({}, s.form, p) })); }
+  say(msg) { this.setState({ announce: msg }); }
+
+  human(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+
+  handleFile(f) {
+    if (!f) return;
+    const maxMb = this.props.maxFileMb ?? 10;
+    if (!(f.type === 'application/pdf' || /\.pdf$/i.test(f.name))) {
+      return this.form({ ui: 'wrongtype', drag: false, err: "That's not a PDF. Only PDF files can be signed." });
+    }
+    if (f.size / 1048576 > maxMb) {
+      return this.form({ ui: 'toolarge', drag: false, err: 'That file is ' + this.human(f.size) + '. The limit is ' + maxMb + ' MB.' });
+    }
+    const pages = Math.max(1, Math.min(24, Math.round(f.size / 60000)));
+    this.form({ file: { name: f.name, meta: this.human(f.size) + ' · ' + pages + (pages === 1 ? ' page' : ' pages'), pages: pages }, ui: 'idle', err: '', drag: false });
+    this.say(f.name + ' attached, ' + pages + ' pages.');
+  }
+
+  forceState(ui) {
+    const f = this.state.form;
+    const filled = f.title || f.email || f.file || f.signers[0].email;
+    const base = filled ? f : Object.assign({}, f, { title: SAMPLE.title, email: SAMPLE.email, signers: SAMPLE.signers.map(s => Object.assign({}, s)), file: SAMPLE.file });
+    if (ui === 'dragging') return this.setState({ form: Object.assign({}, f, { ui: 'idle', drag: true, err: '' }) });
+    if (ui === 'wrongtype') return this.setState({ form: Object.assign({}, base, { ui: ui, drag: false, file: null, err: "That's not a PDF. Only PDF files can be signed." }) });
+    if (ui === 'toolarge') return this.setState({ form: Object.assign({}, base, { ui: ui, drag: false, file: null, err: 'That file is 14.2 MB. The limit is ' + (this.props.maxFileMb ?? 10) + ' MB.' }) });
+    if (ui === 'error') return this.setState({ form: Object.assign({}, base, { ui: ui, drag: false, err: "We couldn't reach the server. Nothing was lost — your details are still here, so try sending again." }) });
+    this.setState({ form: Object.assign({}, base, { ui: ui, drag: false, err: '' }) });
+  }
+
+  makeDoc(f) {
+    const at = new Date().toISOString();
+    return {
+      id: tok(16), title: f.title.trim(), requesterEmail: f.email.trim(), requesterToken: tok(32),
+      status: 'pending', createdAt: at, completedAt: null, pageCount: (f.file && f.file.pages) || 4,
+      fileName: f.file ? f.file.name : 'document.pdf', hasSignedVersion: false, version: 0,
+      signers: f.signers.filter(s => EMAIL.test((s.email || '').trim())).map((s, i) => ({
+        email: s.email.trim(), name: s.name.trim() || null, orderIdx: i, token: tok(32), status: 'pending', signedAt: null
+      }))
+    };
+  }
+
+  submit() {
+    this.form({ ui: 'uploading', drag: false, err: '' });
+    clearTimeout(this.t1);
+    this.t1 = setTimeout(() => {
+      const doc = this.makeDoc(this.state.form);
+      this.setState({ doc: doc, screen: 's2', form: Object.assign({}, this.state.form, { ui: 'idle' }) });
+      this.say('Request created. ' + doc.signers.length + ' signer links ready.');
+    }, 1500);
+  }
+
+  ensureDoc() {
+    if (this.state.doc) return this.state.doc;
+    const doc = this.makeDoc(Object.assign({}, SAMPLE, { signers: SAMPLE.signers.map(s => Object.assign({}, s)) }));
+    this.setState({ doc: doc });
+    return doc;
+  }
+
+  goto(screen) {
+    if (screen !== 's1') this.ensureDoc();
+    if (screen === 's3') {
+      this.setState({ screen: 's3', s3Loading: true, s3RefreshErr: false });
+      clearTimeout(this.t2);
+      this.t2 = setTimeout(() => this.setState({ s3Loading: false, now: Date.now() }), 700);
+      return;
+    }
+    this.setState({ screen: screen });
+  }
+
+  copy(id, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
+    this.setState({ copied: id, announce: 'Link copied.' });
+    clearTimeout(this.t3);
+    this.t3 = setTimeout(() => this.setState({ copied: '' }), 1700);
+  }
+
+  signAs(idx) {
+    const doc = this.state.doc;
+    if (!doc) return;
+    const s = doc.signers[idx];
+    if (!s || s.status === 'signed') return;
+    const at = new Date().toISOString();
+    const name = s.name || NAMES[idx % NAMES.length];
+    const signers = doc.signers.map((r, i) => i === idx ? Object.assign({}, r, { status: 'signed', signedAt: at, name: name }) : r);
+    const done = signers.every(r => r.status === 'signed');
+    this.setState({
+      doc: Object.assign({}, doc, {
+        signers: signers, hasSignedVersion: true, version: doc.version + 1,
+        status: done ? 'completed' : 'pending', completedAt: done ? at : null
+      }),
+      celebrate: done, now: Date.now(),
+      announce: name + ' signed.' + (done ? ' All signatures collected.' : '')
+    });
+    if (done && !this.reduced) { clearTimeout(this.t4); this.t4 = setTimeout(() => this.setState({ celebrate: false }), 6000); }
+  }
+
+  download() {
+    const doc = this.state.doc;
+    if (!doc || !doc.hasSignedVersion) return;
+    const name = slug(doc.title) + '-signed.pdf';
+    this.setState({ announce: name + ' downloaded.', now: Date.now() });
+  }
+
+  renderVals() {
+    const st = this.state, f = st.form, doc = st.doc, now = st.now;
+    const cap = Math.max(1, Math.min(5, this.props.signerCap ?? 5));
+    const busy = f.ui === 'uploading';
+    const validEmails = EMAIL.test(f.email.trim()) && EMAIL.test((f.signers[0].email || '').trim());
+    const ready = !!f.title.trim() && !!f.file && validEmails;
+    let hint = 'Signers get their links in the order above.';
+    if (!f.title.trim()) hint = 'Add a title, your email, one signer and a PDF to send.';
+    else if (!f.file) hint = 'A PDF is still missing.';
+    else if (!validEmails) hint = 'Check the email addresses — yours and signer 1’s.';
+    if (busy) hint = 'Uploading the PDF and minting the links.';
+
+    const signed = doc ? doc.signers.filter(s => s.status === 'signed').length : 0;
+    const total = doc ? doc.signers.length : 0;
+    const nextIdx = doc ? doc.signers.findIndex(s => s.status !== 'signed') : -1;
+    const pending = doc ? doc.status === 'pending' : true;
+
+    const v = {
+      dev: this.props.showDevBar ?? true,
+      isS1: st.screen === 's1', isS2: st.screen === 's2', isS3: st.screen === 's3',
+      announce: st.announce,
+      stepLabel: st.screen === 's1' ? 'Request · Step 1 of 3' : (st.screen === 's2' ? 'Sent · Step 2 of 3' : (st.notFound ? 'Dashboard · 404' : 'Dashboard · Step 3 of 3')),
+
+      fTitle: f.title, fEmail: f.email, busy: busy, notBusy: !busy, drag: f.drag,
+      noFile: !f.file, fileName: f.file ? f.file.name : '', fileMeta: f.file ? f.file.meta : '',
+      fileErr: (f.ui === 'wrongtype' || f.ui === 'toolarge') ? f.err : '',
+      serverErr: f.ui === 'error' ? f.err : '',
+      submitDisabled: !ready, addDisabled: busy || f.signers.length >= cap,
+      capNote: f.signers.length + ' of ' + cap, hint: hint,
+      onTitle: e => this.form({ title: e.target.value }),
+      onEmail: e => this.form({ email: e.target.value }),
+      onPick: e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; this.handleFile(file); },
+      addSigner: () => this.form({ signers: f.signers.concat([{ email: '', name: '' }]) }),
+      onDragOver: e => { e.preventDefault(); if (!f.drag && !busy) this.form({ drag: true }); },
+      onDragLeave: e => { e.preventDefault(); if (f.drag) this.form({ drag: false }); },
+      onDrop: e => { e.preventDefault(); this.form({ drag: false }); if (!busy) this.handleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); },
+      submit: () => this.submit(),
+      rows: f.signers.map((row, i) => ({
+        n: i + 1, short: SHORT[i], ordinal: ORDINALS[i], email: row.email, name: row.name,
+        canRemove: f.signers.length > 1,
+        setEmail: e => this.form({ signers: f.signers.map((r, j) => j === i ? Object.assign({}, r, { email: e.target.value }) : r) }),
+        setName: e => this.form({ signers: f.signers.map((r, j) => j === i ? Object.assign({}, r, { name: e.target.value }) : r) }),
+        remove: () => this.form({ signers: f.signers.filter((r, j) => j !== i) })
+      })),
+      devScreens: [['s1', 'S1 Create'], ['s2', 'S2 Sent'], ['s3', 'S3 Dashboard']].map(c => ({
+        label: c[1], on: st.screen === c[0], pick: () => this.goto(c[0])
+      })),
+      devStates: STATES.map(c => ({
+        label: c[1], on: c[0] === 'dragging' ? f.drag : (f.ui === c[0] && !f.drag), pick: () => this.forceState(c[0])
+      }))
+    };
+
+    if (!doc) {
+      return Object.assign(v, {
+        s2Sub: '', s2Links: [], s2DashUrl: '', dashCopyLabel: 'Copy link', copyDash: () => {},
+        goDash: () => this.goto('s3'), newRequest: () => this.goto('s1'),
+        s3Loading: false, s3Ready: false, s3RefreshErr: false, notFound: false, celebrate: false,
+        docTitle: '', docMeta: '', isPending: false, isCompleted: false,
+        progressLabel: '', waitingLabel: '', pollLabel: '', segments: [], s3Rows: [],
+        downloadTitle: '', downloadHelp: '', downloadLabel: '', canDownload: false, noDownload: false,
+        download: () => {}, devSim: []
+      });
+    }
+
+    const dashUrl = ORIGIN + '/d/' + doc.requesterToken;
+    return Object.assign(v, {
+      s2Sub: doc.signers.length === 1
+        ? 'One signer link is ready. Send it however you like — email, chat, carrier pigeon.'
+        : doc.signers.length + ' signer links are ready, one per person, unlocking in order. Send them however you like.',
+      s2Links: doc.signers.map((s, i) => ({
+        n: i + 1, email: s.email, url: ORIGIN + '/s/' + s.token,
+        state: i === 0 ? 'Live now' : 'Unlocks after ' + i,
+        copyLabel: st.copied === 'l' + i ? 'Copied' : 'Copy link',
+        copy: () => this.copy('l' + i, ORIGIN + '/s/' + s.token)
+      })),
+      s2DashUrl: dashUrl,
+      dashCopyLabel: st.copied === 'dash' ? 'Copied' : 'Copy link',
+      copyDash: () => this.copy('dash', dashUrl),
+      goDash: () => this.goto('s3'),
+      newRequest: () => { this.setState({ form: this.blankForm(), doc: null }); this.goto('s1'); },
+
+      s3Loading: st.s3Loading && !st.notFound, s3Ready: !st.s3Loading && !st.notFound,
+      notFound: st.notFound, s3RefreshErr: st.s3RefreshErr, celebrate: st.celebrate,
+      docTitle: doc.title, isPending: pending, isCompleted: !pending,
+      docMeta: doc.fileName + ' · ' + doc.pageCount + ' pages · created ' + rel(doc.createdAt, now) + ' by ' + doc.requesterEmail,
+      progressLabel: signed + ' of ' + total + ' signed',
+      waitingLabel: pending
+        ? (nextIdx >= 0 ? 'Waiting on ' + doc.signers[nextIdx].email : '')
+        : 'Completed ' + rel(doc.completedAt, now),
+      pollLabel: pending ? 'Live · checks every 5s' : 'No longer polling',
+      segments: doc.signers.map((s, i) => ({ filled: s.status === 'signed' })),
+      s3Rows: doc.signers.map((s, i) => ({
+        n: i + 1, email: s.email,
+        sub: s.status === 'signed' ? 'Signed as ' + s.name : (i === nextIdx ? ORDINALS[i] + ' · link is live' : ORDINALS[i] + ' · link inert until ' + i),
+        signed: s.status === 'signed', pending: s.status !== 'signed',
+        waiting: pending && i === nextIdx,
+        rel: s.signedAt ? rel(s.signedAt, now) : '',
+        abs: s.signedAt ? absTime(s.signedAt) : '',
+        copyLabel: st.copied === 'r' + i ? 'Copied' : 'Copy signing link',
+        copy: () => this.copy('r' + i, ORIGIN + '/s/' + s.token)
+      })),
+      downloadTitle: doc.hasSignedVersion
+        ? (pending ? 'Current version · v' + doc.version : 'Signed document · final')
+        : 'Nothing signed yet',
+      downloadHelp: doc.hasSignedVersion
+        ? (pending ? 'Not everyone has signed yet. This copy carries the ' + signed + ' signature' + (signed === 1 ? '' : 's') + ' collected so far.' : 'All ' + total + ' signatures are on this copy.')
+        : 'The signed PDF appears here the moment the first signature lands.',
+      downloadLabel: pending ? 'Download current version' : 'Download signed PDF',
+      canDownload: doc.hasSignedVersion, noDownload: !doc.hasSignedVersion,
+      download: () => this.download(),
+      devSim: doc.signers.map((s, i) => ({
+        label: 'Sign as ' + (i + 1), off: s.status === 'signed' || i !== nextIdx, pick: () => this.signAs(i)
+      })).concat([{
+        label: st.s3RefreshErr ? 'Reconnect' : 'Refresh error', off: false,
+        pick: () => this.setState({ s3RefreshErr: !st.s3RefreshErr })
+      }, {
+        label: st.notFound ? 'Valid token' : '404 token', off: false,
+        pick: () => this.setState({ notFound: !st.notFound })
+      }])
+    });
+  }
+}
+</script>
+</body>
+</html>
