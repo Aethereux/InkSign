@@ -1,9 +1,10 @@
 import * as pdfjs from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// Vite's ?worker import: Vite constructs the Worker with the correct module type and
+// bundles it. Pointing GlobalWorkerOptions.workerSrc at a bare .mjs URL instead makes
+// pdf.js build the worker itself, which is fragile across bundlers.
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 
-// Assigning the worker as a URL is what keeps pdf.js off its fake-worker fallback, which
-// warns in dev and silently fails in a production build.
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 export const loadPdf = (data: ArrayBuffer) => pdfjs.getDocument({ data }).promise;
 
