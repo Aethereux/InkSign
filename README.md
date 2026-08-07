@@ -19,6 +19,7 @@ There are no accounts. The links are the access control.
 
 | | |
 |---|---|
+| **Landing** | ![Landing page](docs/screenshots/landing.png) |
 | **Create a request** | ![Create a request](docs/screenshots/create.png) |
 | **Sign it** — click to place, draw, submit | ![Signing](docs/screenshots/signer.png) |
 | **Collect it** — live status and the signed PDF | ![Dashboard](docs/screenshots/dashboard.png) |
@@ -46,6 +47,9 @@ bun run dev                   # API + built frontend on http://localhost:3000
 
 Open <http://localhost:3000> and create a request. The schema is created on boot; there is
 no migration step.
+
+Four routes, no router dependency: `/` landing, `/new` create a request,
+`/d/:requesterToken` dashboard, `/s/:signToken` sign.
 
 For frontend work, run Vite alongside it for hot reload:
 

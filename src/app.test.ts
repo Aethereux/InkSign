@@ -32,7 +32,7 @@ test("/health reports ok and proves the database is reachable", async () => {
 });
 
 test("SPA routes fall back to index.html so a hard refresh works", async () => {
-  for (const path of ["/", "/d/abc123", "/s/def456"]) {
+  for (const path of ["/", "/new", "/d/abc123", "/s/def456"]) {
     const res = await get(path);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('<div id="root">');

@@ -22,7 +22,7 @@ export default function Create() {
   const [created, setCreated] = useState<CreatedDoc | null>(null);
   const picker = useRef<HTMLInputElement>(null);
 
-  if (created) return <Sent doc={created} onRestart={() => location.reload()} />;
+  if (created) return <Sent doc={created} onRestart={() => location.assign("/new")} />;
 
   const busy = ui === "uploading";
   const validEmails = isEmail(email) && isEmail(signers[0]?.email ?? "");

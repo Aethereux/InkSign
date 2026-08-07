@@ -101,6 +101,13 @@ export default function Signer({ token }: { token: string }) {
     setAnnounce(`Signature placed on page ${page + 1}. Draw your signature to preview it.`);
   }
 
+  function clearPlacement() {
+    setBox(null);
+    setGhost(null);
+    setPhase("place");
+    setAnnounce("Placement cleared. Click any page to place it again.");
+  }
+
   function onPageKey(e: React.KeyboardEvent) {
     if (phase === "place") {
       if (e.key === "Enter" || e.key === " ") {
@@ -124,7 +131,7 @@ export default function Signer({ token }: { token: string }) {
       "+": () => set({ w: Math.min(0.9, box.w + 0.02) }),
       "=": () => set({ w: Math.min(0.9, box.w + 0.02) }),
       "-": () => set({ w: Math.max(0.08, box.w - 0.02) }),
-      Escape: () => { setBox(null); setPhase("place"); setAnnounce("Placement cleared."); },
+      Escape: clearPlacement,
       Enter: () => nameEl.current?.focus(),
     };
     const fn = keys[e.key];
@@ -219,6 +226,7 @@ export default function Signer({ token }: { token: string }) {
             phase={phase}
             view={view}
             box={box}
+            onClear={clearPlacement}
             signedAt={view?.signedAt ?? null}
             remaining={view?.remainingSigners ?? 0}
             token={token}
@@ -226,7 +234,7 @@ export default function Signer({ token }: { token: string }) {
 
           <main style={{ display: "flex", flexWrap: "wrap", flex: 1, alignItems: "stretch" }}>
             <div style={{ flex: "1 1 560px", minWidth: 280, padding: "clamp(14px,4vw,28px)" }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12, maxWidth: 620, margin: "0 auto 12px" }}>
                 <button type="button" className="btn btn-icon btn-secondary" aria-label="Previous page"
                   disabled={page === 0} onClick={() => { setPage((p) => Math.max(0, p - 1)); setGhost(null); }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
@@ -276,7 +284,7 @@ export default function Signer({ token }: { token: string }) {
                 onPointerUp={() => { drag.current = null; }}
                 onPointerLeave={() => { drag.current = null; setGhost(null); }}
                 style={{
-                  position: "relative", maxWidth: 620, background: "#fff",
+                  position: "relative", maxWidth: 620, margin: "0 auto", background: "#fff",
                   border: `2px solid ${DIVIDER}`, overflow: "hidden",
                   cursor: phase === "place" ? "crosshair" : "default",
                   minHeight: metrics ? undefined : 400,
@@ -430,8 +438,8 @@ export default function Signer({ token }: { token: string }) {
   );
 }
 
-function StateBand({ phase, view, signedAt, remaining, token }: {
-  phase: Phase; view: SignerView | null; box: Box | null;
+function StateBand({ phase, view, box, onClear, signedAt, remaining, token }: {
+  phase: Phase; view: SignerView | null; box: Box | null; onClear: () => void;
   signedAt: string | null; remaining: number; token: string;
 }) {
   if (phase === "wait") {
@@ -479,8 +487,17 @@ function StateBand({ phase, view, signedAt, remaining, token }: {
     );
   }
   return (
-    <div style={{ background: "#eae9e9", borderBottom: `2px solid ${DIVIDER}`, padding: "12px clamp(14px,4vw,28px)", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+    <div style={{ background: "#eae9e9", borderBottom: `2px solid ${DIVIDER}`, padding: "12px clamp(14px,4vw,28px)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
       <span style={{ fontSize: 13.5 }}>Drag the box to adjust. The corner handle resizes it.</span>
+      {box && (
+        <code style={{ fontSize: 12, color: MUTED, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+          x {box.x.toFixed(2)} · y {box.y.toFixed(2)} · w {box.w.toFixed(2)} · page {box.page + 1}
+        </code>
+      )}
+      <button type="button" className="btn btn-secondary btn-center" style={{ marginLeft: "auto", height: 34 }}
+        onClick={onClear}>
+        Clear placement
+      </button>
     </div>
   );
 }

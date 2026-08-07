@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Header, InvalidLinkCard } from "./components/Chrome";
 import Create from "./screens/Create";
+import Landing from "./screens/Landing";
 import Dashboard from "./screens/Dashboard";
 import Signer from "./screens/Signer";
 import "./styles.css";
@@ -12,7 +13,8 @@ function App() {
   const dashboard = /^\/d\/([^/]+)$/.exec(path);
   const signer = /^\/s\/([^/]+)$/.exec(path);
 
-  if (path === "/") return <Create />;
+  if (path === "/") return <Landing />;
+  if (path === "/new") return <Create />;
   if (dashboard) return <Dashboard token={dashboard[1]!} />;
   if (signer) return <Signer token={signer[1]!} />;
 

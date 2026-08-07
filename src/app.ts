@@ -17,7 +17,7 @@ import {
 const PUBLIC_DIR = new URL("../public/", import.meta.url).pathname;
 
 /** Paths the SPA owns. Anything else that isn't a real file is a genuine 404. */
-const SPA_ROUTES = [/^\/$/, /^\/d\/[^/]+$/, /^\/s\/[^/]+$/];
+const SPA_ROUTES = [/^\/$/, /^\/new$/, /^\/d\/[^/]+$/, /^\/s\/[^/]+$/];
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
