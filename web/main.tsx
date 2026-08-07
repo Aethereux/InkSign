@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Header, InvalidLinkCard } from "./components/Chrome";
 import Create from "./screens/Create";
+import Dashboard from "./screens/Dashboard";
 import "./styles.css";
 
 /** Three routes, two of them a prefix plus a token — not enough to justify a router. */
@@ -11,7 +12,7 @@ function App() {
   const signer = /^\/s\/([^/]+)$/.exec(path);
 
   if (path === "/") return <Create />;
-  if (dashboard) return <Placeholder label={`Dashboard ${dashboard[1]}`} />;
+  if (dashboard) return <Dashboard token={dashboard[1]!} />;
   if (signer) return <Placeholder label={`Signer ${signer[1]}`} />;
 
   return (
