@@ -1,9 +1,13 @@
 import { Elysia } from "elysia";
 import { PDFDocument } from "pdf-lib";
 import { sql, token } from "./db";
+import { applySignature, decodePngDataUrl } from "./sign";
 import {
   Invalid,
   parsePdf,
+  parsePlacement,
+  parsePrintedName,
+  parseSignerName,
   parseRequesterEmail,
   parseSigners,
   parseTitle,
@@ -46,6 +50,16 @@ type DocRow = {
   completed_at: Date | null;
 };
 
+type SignerRow = {
+  id: string;
+  doc_id: string;
+  email: string;
+  name: string | null;
+  order_idx: number;
+  status: string;
+  signed_at: Date | null;
+};
+
 const docByRequesterToken = async (token: string): Promise<DocRow | null> => {
   const [row] = await sql`SELECT * FROM documents WHERE requester_token = ${token}`;
   return (row as DocRow) ?? null;
@@ -56,6 +70,40 @@ const workingPdf = async (docId: string, version: number): Promise<Uint8Array<Ar
   const [row] = await sql`
     SELECT pdf FROM document_files WHERE doc_id = ${docId} AND version_no = ${version}`;
   return row ? new Uint8Array(row.pdf) : null;
+};
+
+
+/**
+ * The signer's own view. Returns only what this signer may know — never another signer's
+ * token, and never the requester's.
+ */
+const signerView = async (token: string) => {
+  const [row] = await sql`SELECT * FROM signers WHERE token = ${token}`;
+  if (!row) return null;
+  const s = row as SignerRow;
+
+  const [doc] = await sql`SELECT * FROM documents WHERE id = ${s.doc_id}`;
+  if (!doc) return null;
+  const d = doc as DocRow;
+
+  const all = await sql`
+    SELECT email, order_idx, status FROM signers WHERE doc_id = ${s.doc_id} ORDER BY order_idx`;
+  const ahead = all.filter(
+    (o: { order_idx: number; status: string }) => o.order_idx < s.order_idx && o.status !== "signed",
+  );
+
+  return json({
+    docTitle: d.title,
+    filename: d.filename,
+    pageCount: d.page_count,
+    docStatus: d.status,
+    yourStatus: s.status,
+    yourTurn: s.status === "pending" && ahead.length === 0,
+    waitingOn: ahead[0]?.email ?? null,
+    position: { index: s.order_idx, total: all.length },
+    remainingSigners: all.filter((o: { status: string }) => o.status !== "signed").length,
+    signedAt: s.signed_at,
+  });
 };
 
 /**
@@ -175,6 +223,105 @@ export const app = new Elysia()
         "content-disposition": `attachment; filename="${slug(doc.title)}-${suffix}.pdf"`,
       },
     });
+  })
+
+  .get("/api/sign/:token", async ({ params }) => {
+    const view = await signerView(params.token);
+    return view ?? notFound();
+  })
+
+  .get("/api/sign/:token/file", async ({ params }) => {
+    const [signer] = await sql`SELECT doc_id FROM signers WHERE token = ${params.token}`;
+    if (!signer) return notFound();
+    const [doc] = await sql`SELECT latest_version FROM documents WHERE id = ${signer.doc_id}`;
+    const pdf = doc ? await workingPdf(signer.doc_id, doc.latest_version) : null;
+    if (!pdf) return notFound();
+    return new Response(pdf, {
+      headers: { "content-type": "application/pdf", "content-disposition": "inline" },
+    });
+  })
+
+  .post("/api/sign/:token", async ({ params, body }) => {
+    try {
+      const input = (body ?? {}) as Record<string, unknown>;
+      // Validate before opening the transaction — no point holding a row lock to find out
+      // the signature isn't a PNG.
+      const name = parseSignerName(input.name);
+      const printedName = parsePrintedName(input.printedName);
+      const placement = parsePlacement(input.placement);
+      let png: Uint8Array;
+      try {
+        png = decodePngDataUrl(String(input.signaturePng ?? ""));
+      } catch (e) {
+        throw new Invalid("invalid_signature", (e as Error).message);
+      }
+
+      const result = await sql.begin(async (tx) => {
+        // FOR UPDATE on both rows: two signers racing the same document would otherwise
+        // both read the same latest_version and one signature would overwrite the other.
+        const [signer] = await tx`
+          SELECT * FROM signers WHERE token = ${params.token} FOR UPDATE`;
+        if (!signer) throw new Invalid("not_found", "Not found.", 404);
+        const s = signer as SignerRow;
+
+        if (s.status === "signed")
+          throw new Invalid("already_signed", "You have already signed this document.", 409);
+
+        const [{ waiting }] = await tx`
+          SELECT COUNT(*)::int AS waiting FROM signers
+          WHERE doc_id = ${s.doc_id} AND order_idx < ${s.order_idx} AND status <> 'signed'`;
+        if (waiting > 0)
+          throw new Invalid("not_your_turn", "It isn't your turn to sign yet.", 409);
+
+        const [docRow] = await tx`SELECT * FROM documents WHERE id = ${s.doc_id} FOR UPDATE`;
+        const doc = docRow as DocRow;
+        const [file] = await tx`
+          SELECT pdf FROM document_files
+          WHERE doc_id = ${doc.id} AND version_no = ${doc.latest_version}`;
+        if (!file) throw new Invalid("not_found", "Not found.", 404);
+
+        // ponytail: stamping runs inside the transaction, so the row lock is held for the
+        // duration. Fine at this scale; move it outside with an optimistic version check
+        // if documents ever get big enough for that to matter.
+        const stamped = await applySignature({
+          pdf: new Uint8Array(file.pdf),
+          signaturePng: png,
+          placement,
+          name,
+          printedName,
+        });
+
+        const version = doc.latest_version + 1;
+        await tx`INSERT INTO document_files ${tx({
+          doc_id: doc.id,
+          version_no: version,
+          pdf: Buffer.from(stamped),
+        })}`;
+
+        const signedAt = new Date();
+        await tx`
+          UPDATE signers SET status = 'signed', name = ${name}, signed_at = ${signedAt}
+          WHERE id = ${s.id}`;
+
+        const [{ remaining }] = await tx`
+          SELECT COUNT(*)::int AS remaining FROM signers
+          WHERE doc_id = ${doc.id} AND status <> 'signed'`;
+        const complete = remaining === 0;
+
+        await tx`
+          UPDATE documents
+          SET latest_version = ${version},
+              status = ${complete ? "completed" : "pending"},
+              completed_at = ${complete ? signedAt : null}
+          WHERE id = ${doc.id}`;
+
+        return { status: "signed", docStatus: complete ? "completed" : "pending", signedAt };
+      });
+
+      return json(result);
+    } catch (e) {
+      return fail(e);
+    }
   })
 
   .all("/api/*", () => notFound())

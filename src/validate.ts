@@ -82,3 +82,33 @@ export function safeFilename(raw: unknown): string {
   const cleaned = base.replace(/[^\w.\- ]/g, "").trim().slice(0, 120);
   return cleaned || "document.pdf";
 }
+
+export function parseSignerName(raw: unknown): string {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (!name) throw new Invalid("invalid_name", "Your full name is required.");
+  if (name.length > 100) throw new Invalid("invalid_name", "That name is too long (100 characters maximum).");
+  return name;
+}
+
+export function parsePrintedName(raw: unknown): "under" | "none" {
+  if (raw === "none") return "none";
+  if (raw === "under" || raw === undefined || raw === null) return "under";
+  throw new Invalid("invalid_placement", "Unknown printed-name option.");
+}
+
+/**
+ * Values are clamped downstream in sign.ts — a signature two pixels off the page edge
+ * should land on the edge. This only rejects input that isn't a number at all, which
+ * means the client is broken rather than the signer being imprecise.
+ */
+export function parsePlacement(raw: unknown): { page: number; x: number; y: number; w: number } {
+  const p = raw as Record<string, unknown> | null;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const page = num(p?.page);
+  const x = num(p?.x);
+  const y = num(p?.y);
+  const w = num(p?.w);
+  if (page === null || x === null || y === null || w === null)
+    throw new Invalid("invalid_placement", "The signature position was missing or unreadable.");
+  return { page, x, y, w };
+}
