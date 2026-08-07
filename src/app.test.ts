@@ -1,13 +1,10 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { beforeAll, expect, test } from "bun:test";
 import { app } from "./app";
 import { migrate, sql, truncateAll } from "./db";
 
 beforeAll(async () => {
   await migrate();
   await truncateAll();
-});
-afterAll(async () => {
-  await sql.close();
 });
 
 const get = (path: string) => app.handle(new Request(`http://localhost${path}`));
