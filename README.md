@@ -39,7 +39,7 @@ cd InkSign
 bun install
 
 # Postgres on :5432
-docker run -d --name inksign-pg -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16
+docker run -d --name inksign-pg -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:17
 
 cp .env.example .env          # defaults already match the container above
 bun run dev                   # API + built frontend on http://localhost:3000
@@ -57,7 +57,8 @@ For frontend work, run Vite alongside it for hot reload:
 bun run dev:web               # http://localhost:5173, proxies /api to :3000
 ```
 
-**Versions used:** Bun 1.3.14, Postgres 16.
+**Versions used:** Bun 1.3.14, Postgres 17 — the same major version Neon runs in production
+and CI runs on, so there is one version in play everywhere. The suite also passes on 16 and 18.
 
 ## Run the tests
 
