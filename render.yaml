@@ -1,0 +1,14 @@
+# Render blueprint. New → Blueprint → point at this repo and it reads this file.
+services:
+  - type: web
+    name: inksign
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      # Paste the Neon connection string in the dashboard — never commit it.
+      # Use Neon's DIRECT endpoint, not the -pooler one: Bun.sql uses prepared
+      # statements, which PgBouncer's transaction pooling mode rejects.
+      - key: DATABASE_URL
+        sync: false

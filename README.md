@@ -151,8 +151,9 @@ test suite was truncating the development database on every run.
 Render (Docker web service, free tier) + Neon (free Postgres). Both are permanent free
 tiers and neither needs a credit card.
 
-1. Create a Neon project and copy the pooled connection string.
-2. On Render: New → Web Service → this repo → runtime **Docker** → instance type **Free**.
+1. Create a Neon project and copy the **direct** connection string — not the `-pooler`
+   one. Bun.sql uses prepared statements, which PgBouncer's transaction pooling rejects.
+2. On Render: New → Blueprint → this repo. `render.yaml` sets runtime, plan and health check.
 3. Set `DATABASE_URL` to the Neon string. `PORT` is supplied by Render.
 
 The free instance sleeps after 15 minutes idle, so the first request after a quiet spell
