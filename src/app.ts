@@ -5,7 +5,7 @@ import { applySignature, decodePngDataUrl } from "./sign";
 import {
   Invalid,
   parsePdf,
-  parsePlacement,
+  parsePlacements,
   parsePrintedName,
   parseSignerName,
   parseRequesterEmail,
@@ -248,7 +248,8 @@ export const app = new Elysia()
       // the signature isn't a PNG.
       const name = parseSignerName(input.name);
       const printedName = parsePrintedName(input.printedName);
-      const placement = parsePlacement(input.placement);
+      // `placement` (singular) is still accepted so a stale client keeps working.
+      const placements = parsePlacements(input.placements ?? input.placement);
       let png: Uint8Array;
       try {
         png = decodePngDataUrl(String(input.signaturePng ?? ""));
@@ -286,7 +287,7 @@ export const app = new Elysia()
         const stamped = await applySignature({
           pdf: new Uint8Array(file.pdf),
           signaturePng: png,
-          placement,
+          placements,
           name,
           printedName,
         });

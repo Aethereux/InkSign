@@ -19,7 +19,8 @@ first signature lands.
 No accounts — the links are the access control.
 
 Extras beyond the core flow: **sequential multi-signer** (signer 2's link is inert until
-signer 1 signs), **click-to-place positioning**, and **live status tracking**.
+signer 1 signs), **click-to-place positioning with as many marks as you like** — initial every
+page and sign the last one, in a single submission — and **live status tracking**.
 
 | | |
 |---|---|
@@ -60,10 +61,11 @@ bun run test        # builds the frontend, then runs the suite
 bun run typecheck
 ```
 
-63 tests covering the placement maths, the upload trust boundary (11 rejection cases, each
+77 tests covering the placement maths, the upload trust boundary (11 rejection cases, each
 asserting nothing was written), the full two-signer flow, out-of-turn and double-signing
-refusals, opaque 404s on every token route, and a concurrency test that fires three
-simultaneous signatures at one link and asserts exactly one wins.
+refusals, opaque 404s on every token route, multi-page placement, names outside WinAnsi that
+would otherwise crash the stamp, and a concurrency test that fires three simultaneous
+signatures at one link and asserts exactly one wins.
 
 They run against real Postgres, not a stub — the schema and the signing transaction are
 exactly what a stub can't exercise. Since they truncate every table, they redirect

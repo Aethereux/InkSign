@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { PDFDocument } from "pdf-lib";
-import { NAME_BAND, applySignature, decodePngDataUrl, layout } from "./sign";
+import { NAME_BAND, applySignature, decodePngDataUrl, layout, toWinAnsi } from "./sign";
 
 // Opaque PNGs generated offline: 40×20 (aspect 0.5) and 20×20 (aspect 1).
 const PNG_2x1 = decodePngDataUrl(
@@ -85,7 +85,7 @@ test("stamping preserves the page count and returns a loadable PDF", async () =>
   const after = await applySignature({
     pdf: before,
     signaturePng: PNG_2x1,
-    placement: place({ page: 1 }),
+    placements: [place({ page: 1 })],
     name: "Ada Lovelace",
     printedName: "under",
   });
@@ -100,7 +100,7 @@ test("a page index past the end clamps to the last page", async () => {
   const pdf = await applySignature({
     pdf: await fixturePdf(2),
     signaturePng: PNG_1x1,
-    placement: place({ page: 99 }),
+    placements: [place({ page: 99 })],
     name: "Ada",
     printedName: "none",
   });
@@ -111,14 +111,14 @@ test("stamping twice accumulates — this is how multi-signer works", async () =
   const one = await applySignature({
     pdf: await fixturePdf(1),
     signaturePng: PNG_2x1,
-    placement: place(),
+    placements: [place()],
     name: "Ada",
     printedName: "under",
   });
   const two = await applySignature({
     pdf: one,
     signaturePng: PNG_1x1,
-    placement: place({ y: 0.7 }),
+    placements: [place({ y: 0.7 })],
     name: "Grace",
     printedName: "under",
   });
@@ -130,14 +130,76 @@ test("a name far wider than the box still stamps", async () => {
   const pdf = await applySignature({
     pdf: await fixturePdf(1),
     signaturePng: PNG_1x1,
-    placement: place({ w: 0.05 }),
+    placements: [place({ w: 0.05 })],
     name: "Bartholomew Fitzgerald-Wellingtonshire III",
     printedName: "under",
   });
   expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
 });
 
+// --- names outside WinAnsi ---
+
+test.each([
+  ["a non-Latin name", "李伟"],
+  ["a smart apostrophe", "Ada\u2019s Mark"],
+  ["an em dash and ellipsis", "Ada \u2014 Lovelace\u2026"],
+  ["emoji", "Ada \ud83d\ude80"],
+  ["a name that is entirely unencodable", "\u4f60\u597d\u4e16\u754c"],
+])("stamping does not throw on %s", async (_label, name) => {
+  const pdf = await applySignature({
+    pdf: await fixturePdf(1),
+    signaturePng: PNG_2x1,
+    placements: [place()],
+    name,
+    printedName: "under",
+  });
+  expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+});
+
+test("toWinAnsi folds typography to ASCII and drops the rest", () => {
+  expect(toWinAnsi("Ada\u2019s \u201CMark\u201D")).toBe(`Ada's "Mark"`);
+  expect(toWinAnsi("Jos\u00e9 Mart\u00ednez")).toBe("José Martínez"); // Latin-1 survives
+  expect(toWinAnsi("李伟")).toBe("");
+});
+
 // --- decodePngDataUrl -------------------------------------------------------------
+
+test("a signature can be placed on every page in one call", async () => {
+  const before = await fixturePdf(4);
+  const after = await applySignature({
+    pdf: before,
+    signaturePng: PNG_2x1,
+    placements: [0, 1, 2, 3].map((page) => place({ page })),
+    name: "Ada Lovelace",
+    printedName: "under",
+  });
+  const doc = await PDFDocument.load(after);
+  expect(doc.getPageCount()).toBe(4);
+  expect(after.byteLength).toBeGreaterThan(before.byteLength);
+});
+
+test("the image is embedded once, not once per placement", async () => {
+  const args = { signaturePng: PNG_2x1, name: "Ada", printedName: "none" } as const;
+  const one = await applySignature({ pdf: await fixturePdf(8), placements: [place()], ...args });
+  const eight = await applySignature({
+    pdf: await fixturePdf(8),
+    placements: Array.from({ length: 8 }, (_, page) => place({ page })),
+    ...args,
+  });
+  // Eight stamps add eight small content streams, not eight copies of the PNG.
+  expect(eight.byteLength).toBeLessThan(one.byteLength * 2);
+});
+
+test("placements on the same page are all drawn", async () => {
+  const pdf = await applySignature({
+    pdf: await fixturePdf(1),
+    signaturePng: PNG_1x1,
+    placements: [place({ y: 0.2 }), place({ y: 0.5 }), place({ y: 0.8 })],
+    name: "Ada",
+    printedName: "under",
+  });
+  expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+});
 
 test("decodePngDataUrl accepts a real PNG and reports its bytes", () => {
   expect(PNG_2x1.length).toBeGreaterThan(8);

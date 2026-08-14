@@ -2,6 +2,8 @@
 
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 export const MAX_SIGNERS = 5;
+/** Generous, but bounded — each placement is another stamp on the page. */
+export const MAX_PLACEMENTS = 50;
 
 /** Deliberately loose: this is a display label, not an auth factor. */
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -111,4 +113,14 @@ export function parsePlacement(raw: unknown): { page: number; x: number; y: numb
   if (page === null || x === null || y === null || w === null)
     throw new Invalid("invalid_placement", "The signature position was missing or unreadable.");
   return { page, x, y, w };
+}
+
+/** A signer may mark several pages at once — one signature, many placements. */
+export function parsePlacements(raw: unknown): { page: number; x: number; y: number; w: number }[] {
+  const list = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+  if (list.length === 0)
+    throw new Invalid("invalid_placement", "The signature position was missing or unreadable.");
+  if (list.length > MAX_PLACEMENTS)
+    throw new Invalid("invalid_placement", `A signature can be placed at most ${MAX_PLACEMENTS} times.`);
+  return list.map(parsePlacement);
 }

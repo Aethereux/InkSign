@@ -37,7 +37,7 @@ const sign = (token: string, over: Record<string, unknown> = {}) =>
         name: "Ada Lovelace",
         signaturePng: SIG,
         printedName: "under",
-        placement: { page: 3, x: 0.2, y: 0.6, w: 0.25 },
+        placements: [{ page: 3, x: 0.2, y: 0.6, w: 0.25 }],
         ...over,
       }),
     }),
@@ -132,13 +132,59 @@ test("the signer file route serves the working PDF and follows the version forwa
   expect(after.byteLength).not.toBe(beforeBytes.byteLength);
 });
 
+test("a signer can mark every page in one submission", async () => {
+  const created = await createRequest(["solo@acme.com"]);
+  const res = await sign(created.tokens[0]!, {
+    placements: [0, 1, 2, 3].map((page) => ({ page, x: 0.2, y: 0.6, w: 0.25 })),
+  });
+  expect(res.status).toBe(200);
+
+  const file = await get(`/api/docs/${created.requesterToken}/file`);
+  const pdf = new Uint8Array(await file.arrayBuffer());
+  const doc = await PDFDocument.load(pdf);
+  expect(doc.getPageCount()).toBe(4);
+
+  // Still one signature and one version, however many marks it left.
+  const dash = await get(`/api/docs/${created.requesterToken}`).then((r) => r.json());
+  expect(dash.latestVersion).toBe(1);
+  expect(dash.status).toBe("completed");
+});
+
+test("the older singular `placement` payload still works", async () => {
+  const { tokens } = await createRequest(["solo@acme.com"]);
+  const res = await app.handle(
+    new Request(`http://localhost/api/sign/${tokens[0]}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Ada Lovelace",
+        signaturePng: SIG,
+        printedName: "under",
+        placement: { page: 0, x: 0.2, y: 0.6, w: 0.25 },
+      }),
+    }),
+  );
+  expect(res.status).toBe(200);
+});
+
+test.each([
+  ["an empty placement list", { placements: [] }, 400, "invalid_placement"],
+  ["more placements than the cap", { placements: Array(51).fill({ page: 0, x: 0.1, y: 0.1, w: 0.2 }) }, 400, "invalid_placement"],
+  ["a malformed entry among good ones", { placements: [{ page: 0, x: 0.1, y: 0.1, w: 0.2 }, { page: "x" }] }, 400, "invalid_placement"],
+])("rejects %s", async (_label, over, status, code) => {
+  const { tokens } = await createRequest(["solo@acme.com"]);
+  const res = await sign(tokens[0]!, over);
+  expect(res.status).toBe(status);
+  expect((await res.json()).error).toBe(code);
+});
+
 test.each([
   ["a missing name", { name: "" }, 400, "invalid_name"],
   ["an over-long name", { name: "x".repeat(101) }, 400, "invalid_name"],
   ["a non-PNG signature", { signaturePng: "data:image/jpeg;base64,/9j/4AAQ" }, 400, "invalid_signature"],
   ["a missing signature", { signaturePng: undefined }, 400, "invalid_signature"],
-  ["a missing placement", { placement: undefined }, 400, "invalid_placement"],
-  ["a non-numeric placement", { placement: { page: "x", y: 1, w: 1 } }, 400, "invalid_placement"],
+  ["a missing placement", { placements: undefined }, 400, "invalid_placement"],
+  ["a non-numeric placement", { placements: [{ page: "x", y: 1, w: 1 }] }, 400, "invalid_placement"],
 ])("rejects %s", async (_label, over, status, code) => {
   const { tokens } = await createRequest(["solo@acme.com"]);
   const res = await sign(tokens[0]!, over);

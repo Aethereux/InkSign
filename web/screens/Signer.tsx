@@ -23,7 +23,9 @@ export default function Signer({ token }: { token: string }) {
   const [page, setPage] = useState(0);
   const [metrics, setMetrics] = useState<PageMetrics | null>(null);
 
-  const [box, setBox] = useState<Box | null>(null);
+  // A signer may mark several pages — one signature, many placements.
+  const [boxes, setBoxes] = useState<Box[]>([]);
+  const [selected, setSelected] = useState(0);
   const [ghost, setGhost] = useState<{ x: number; y: number; w: number } | null>(null);
   const [name, setName] = useState("");
   const [ink, setInk] = useState<Ink>(null);
@@ -34,11 +36,14 @@ export default function Signer({ token }: { token: string }) {
 
   const pageEl = useRef<HTMLDivElement>(null);
   const nameEl = useRef<HTMLInputElement>(null);
-  const drag = useRef<"move" | "resize" | null>(null);
+  const drag = useRef<{ kind: "move" | "resize"; index: number } | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
 
   const aspect = ink?.aspect ?? DEFAULT_ASPECT;
+  // "place" and "placed" are the same interaction — you can always add another mark.
+  const signing = phase === "place" || phase === "placed";
+  const onThisPage = boxes.filter((b) => b.page === page);
 
   const refresh = useCallback(async () => {
     try {
@@ -92,37 +97,68 @@ export default function Signer({ token }: { token: string }) {
 
   const fit = (v: number, size: number) => clamp(v, 0, Math.max(0, 1 - size));
 
+  function addBox(box: Box) {
+    setBoxes((all) => {
+      setSelected(all.length);
+      return [...all, box];
+    });
+    setGhost(null);
+    setPhase("placed");
+  }
+
   function placeAt(px: number, py: number) {
     const w = DEFAULT_W;
     const h = boxHFrac(w);
-    setBox({ page, x: fit(px - w / 2, w), y: fit(py - h / 2, h), w });
-    setGhost(null);
-    setPhase("placed");
-    setAnnounce(`Signature placed on page ${page + 1}. Draw your signature to preview it.`);
+    addBox({ page, x: fit(px - w / 2, w), y: fit(py - h / 2, h), w });
+    setAnnounce(`Signature placed on page ${page + 1}. ${boxes.length + 1} in total.`);
+  }
+
+  /** Copies the current mark onto every page that doesn't already have one. */
+  function addToEveryPage() {
+    const source = boxes[selected] ?? boxes[0];
+    if (!source) return;
+    const taken = new Set(boxes.map((b) => b.page));
+    const added: Box[] = [];
+    for (let p = 0; p < pageCount; p++) {
+      if (!taken.has(p)) added.push({ ...source, page: p });
+    }
+    if (!added.length) return setAnnounce("Every page already has a signature.");
+    setBoxes((all) => [...all, ...added]);
+    setAnnounce(`Signature added to ${added.length} more page${added.length === 1 ? "" : "s"}.`);
+  }
+
+  function removeBox(index: number) {
+    setBoxes((all) => all.filter((_, i) => i !== index));
+    setSelected(0);
+    setPhase(boxes.length <= 1 ? "place" : "placed");
+    setAnnounce("Placement removed.");
   }
 
   function clearPlacement() {
-    setBox(null);
+    setBoxes([]);
+    setSelected(0);
     setGhost(null);
     setPhase("place");
-    setAnnounce("Placement cleared. Click any page to place it again.");
+    setAnnounce("All placements cleared. Click any page to start again.");
   }
 
   function onPageKey(e: React.KeyboardEvent) {
-    if (phase === "place") {
-      if (e.key === "Enter" || e.key === " ") {
+    if (!signing) return;
+    const box = boxes[selected];
+    if (e.key === "Enter" || e.key === " ") {
+      if (!box || box.page !== page) {
         e.preventDefault();
         const w = DEFAULT_W;
-        setBox({ page, x: 0.5 - w / 2, y: fit(0.62, boxHFrac(w)), w });
-        setPhase("placed");
-        setAnnounce("Signature placed mid-page. Arrow keys nudge it.");
+        addBox({ page, x: 0.5 - w / 2, y: fit(0.62, boxHFrac(w)), w });
+        setAnnounce(`Signature placed mid-page on page ${page + 1}. Arrow keys nudge it.`);
+        return;
       }
-      return;
     }
-    if (phase !== "placed" || !box) return;
+    if (!box) return;
     const step = e.shiftKey ? 0.002 : 0.01;
     const h = boxHFrac(box.w);
-    const set = (patch: Partial<Box>) => setBox({ ...box, ...patch });
+    const set = (patch: Partial<Box>) =>
+      setBoxes((all) => all.map((b, i) => (i === selected ? { ...b, ...patch } : b)));
     const keys: Record<string, () => void> = {
       ArrowLeft: () => set({ x: fit(box.x - step, box.w) }),
       ArrowRight: () => set({ x: fit(box.x + step, box.w) }),
@@ -131,7 +167,7 @@ export default function Signer({ token }: { token: string }) {
       "+": () => set({ w: Math.min(0.9, box.w + 0.02) }),
       "=": () => set({ w: Math.min(0.9, box.w + 0.02) }),
       "-": () => set({ w: Math.max(0.08, box.w - 0.02) }),
-      Escape: clearPlacement,
+      Escape: () => removeBox(selected),
       Enter: () => nameEl.current?.focus(),
     };
     const fn = keys[e.key];
@@ -139,7 +175,7 @@ export default function Signer({ token }: { token: string }) {
   }
 
   async function submit() {
-    if (!box || !ink || !name.trim()) return;
+    if (!boxes.length || !ink || !name.trim()) return;
     setPhase("submitting");
     setConflict(false);
     try {
@@ -147,7 +183,7 @@ export default function Signer({ token }: { token: string }) {
         name: name.trim(),
         signaturePng: ink.dataUrl,
         printedName,
-        placement: { page: box.page, x: box.x, y: box.y, w: box.w },
+        placements: boxes.map((b) => ({ page: b.page, x: b.x, y: b.y, w: b.w })),
       });
       setAnnounce("Signed. The document has been returned to the requester.");
       await refresh();
@@ -178,15 +214,16 @@ export default function Signer({ token }: { token: string }) {
   const total = view?.position.total ?? 1;
   const index = view?.position.index ?? 0;
   const pageCount = view?.pageCount ?? 1;
-  const showBox = box?.page === page && (phase === "placed" || phase === "submitting" || phase === "done");
-  const showPanel = phase === "placed" || phase === "submitting";
+  const showBoxes = boxes.length > 0 && phase !== "wait";
+  const showPanel = boxes.length > 0 && (signing || phase === "submitting");
   const busy = phase === "submitting";
   const scale = metrics?.scale ?? 1;
 
   let signHint = "Type your name and draw a signature to enable this.";
   if (!name.trim() && ink) signHint = "Your name is still missing.";
   else if (name.trim() && !ink) signHint = "Draw your signature above — the pad is empty.";
-  else if (name.trim() && ink) signHint = `This applies your signature to page ${(box?.page ?? 0) + 1} and returns the document to the requester.`;
+  else if (name.trim() && ink)
+    signHint = `This applies your signature to ${boxes.length} ${boxes.length === 1 ? "spot" : "spots"} and returns the document to the requester.`;
   if (busy) signHint = "Stamping the PDF and handing it back.";
 
   return (
@@ -225,8 +262,11 @@ export default function Signer({ token }: { token: string }) {
           <StateBand
             phase={phase}
             view={view}
-            box={box}
+            boxes={boxes}
+            selected={selected}
             onClear={clearPlacement}
+            onEveryPage={addToEveryPage}
+            pageCount={pageCount}
             signedAt={view?.signedAt ?? null}
             remaining={view?.remainingSigners ?? 0}
             token={token}
@@ -245,11 +285,11 @@ export default function Signer({ token }: { token: string }) {
                 </button>
                 <span className="micro" style={{ color: MUTED }}>Page {page + 1} of {pageCount}</span>
                 <span style={{ marginLeft: "auto", fontSize: 12.5, color: HELPER, textAlign: "right" }}>
-                  {phase === "place"
+                  {boxes.length === 0
                     ? `Signature usually goes on the execution page (${pageCount})`
-                    : box
-                      ? box.page === page ? "Your signature is on this page" : `Your signature is on page ${box.page + 1}`
-                      : ""}
+                    : onThisPage.length
+                      ? `${onThisPage.length} on this page · ${boxes.length} in total`
+                      : `${boxes.length} placed — none on this page`}
                 </span>
               </div>
 
@@ -260,22 +300,27 @@ export default function Signer({ token }: { token: string }) {
                 aria-label={`${view?.docTitle ?? "Document"}, page ${page + 1} of ${pageCount}`}
                 onKeyDown={onPageKey}
                 onClick={(e) => {
-                  if (phase !== "place" || moved.current) { moved.current = false; return; }
+                  if (!signing || moved.current) { moved.current = false; return; }
                   const p = fracFromEvent(e);
                   placeAt(p.x, p.y);
                 }}
                 onPointerMove={(e) => {
-                  if (drag.current && box) {
+                  const held = drag.current;
+                  if (held) {
                     const p = fracFromEvent(e);
                     moved.current = true;
-                    if (drag.current === "move") {
-                      setBox({ ...box, x: fit(p.x - dragOffset.current.x, box.w), y: fit(p.y - dragOffset.current.y, boxHFrac(box.w)) });
-                    } else {
-                      setBox({ ...box, w: clamp(p.x - box.x, 0.08, 0.9) });
-                    }
+                    setBoxes((all) =>
+                      all.map((b, i) =>
+                        i !== held.index
+                          ? b
+                          : held.kind === "move"
+                            ? { ...b, x: fit(p.x - dragOffset.current.x, b.w), y: fit(p.y - dragOffset.current.y, boxHFrac(b.w)) }
+                            : { ...b, w: clamp(p.x - b.x, 0.08, 0.9) },
+                      ),
+                    );
                     return;
                   }
-                  if (phase === "place") {
+                  if (signing) {
                     const p = fracFromEvent(e);
                     const h = boxHFrac(DEFAULT_W);
                     setGhost({ x: fit(p.x - DEFAULT_W / 2, DEFAULT_W), y: fit(p.y - h / 2, h), w: DEFAULT_W });
@@ -286,7 +331,7 @@ export default function Signer({ token }: { token: string }) {
                 style={{
                   position: "relative", maxWidth: 620, margin: "0 auto", background: "#fff",
                   border: `2px solid ${DIVIDER}`, overflow: "hidden",
-                  cursor: phase === "place" ? "crosshair" : "default",
+                  cursor: signing ? "crosshair" : "default",
                   minHeight: metrics ? undefined : 400,
                 }}
               >
@@ -303,7 +348,7 @@ export default function Signer({ token }: { token: string }) {
                   <PdfPage data={pdf} pageNumber={page + 1} onMetrics={setMetrics} />
                 )}
 
-                {phase === "place" && ghost && (
+                {signing && ghost && (
                   <div aria-hidden style={{
                     position: "absolute", left: `${ghost.x * 100}%`, top: `${ghost.y * 100}%`,
                     width: `${ghost.w * 100}%`, height: `${boxHFrac(ghost.w) * 100}%`,
@@ -312,52 +357,71 @@ export default function Signer({ token }: { token: string }) {
                   }} />
                 )}
 
-                {showBox && box && (
-                  <div
-                    onPointerDown={(e) => {
-                      if (phase !== "placed") return;
-                      e.preventDefault();
-                      const p = fracFromEvent(e);
-                      drag.current = "move";
-                      dragOffset.current = { x: p.x - box.x, y: p.y - box.y };
-                    }}
-                    style={{
-                      position: "absolute", left: `${box.x * 100}%`, top: `${box.y * 100}%`,
-                      width: `${box.w * 100}%`, height: `${boxHFrac(box.w) * 100}%`,
-                      border: phase === "done" ? "none" : "1px dashed rgba(236,48,19,.85)",
-                      cursor: phase === "placed" ? "move" : "default",
-                    }}
-                  >
-                    {printedName === "under" && (
-                      <>
-                        <div style={{ position: "absolute", left: 0, right: 0, bottom: RULE_OFFSET * scale, height: 1, background: "rgba(32,30,29,.5)" }} />
-                        <div style={{
-                          position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center",
-                          font: `700 ${NAME_SIZE * scale}px/1.4 Archivo, sans-serif`, color: "#201e1d",
-                          whiteSpace: "nowrap", overflow: "hidden",
-                        }}>
-                          {name.trim() || "Your name"}
-                        </div>
-                      </>
-                    )}
-                    {ink ? (
-                      <img src={ink.dataUrl} alt="" style={{
-                        position: "absolute", left: 0, width: "100%",
-                        bottom: printedName === "under" ? INK_OFFSET * scale : 0,
-                      }} />
-                    ) : (
-                      <span className="micro" style={{ position: "absolute", left: 4, top: 3, fontSize: 9, color: "#ae1800" }}>
-                        Signature here
-                      </span>
-                    )}
-                    {phase === "placed" && (
-                      <span
-                        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drag.current = "resize"; }}
-                        style={{ position: "absolute", right: -5, bottom: -5, width: 12, height: 12, background: "#ec3013", cursor: "nwse-resize" }}
-                      />
-                    )}
-                  </div>
-                )}
+                {showBoxes &&
+                  boxes.map((box, i) =>
+                    box.page !== page ? null : (
+                      <div
+                        key={i}
+                        onPointerDown={(e) => {
+                          if (!signing) return;
+                          e.preventDefault();
+                          const p = fracFromEvent(e);
+                          setSelected(i);
+                          drag.current = { kind: "move", index: i };
+                          dragOffset.current = { x: p.x - box.x, y: p.y - box.y };
+                        }}
+                        style={{
+                          position: "absolute", left: `${box.x * 100}%`, top: `${box.y * 100}%`,
+                          width: `${box.w * 100}%`, height: `${boxHFrac(box.w) * 100}%`,
+                          border: phase === "done" ? "none" : `1px dashed rgba(236,48,19,${i === selected ? ".95" : ".5"})`,
+                          cursor: signing ? "move" : "default",
+                        }}
+                      >
+                        {printedName === "under" && (
+                          <>
+                            <div style={{ position: "absolute", left: 0, right: 0, bottom: RULE_OFFSET * scale, height: 1, background: "rgba(32,30,29,.5)" }} />
+                            <div style={{
+                              position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center",
+                              font: `700 ${NAME_SIZE * scale}px/1.4 Archivo, sans-serif`, color: "#201e1d",
+                              whiteSpace: "nowrap", overflow: "hidden",
+                            }}>
+                              {name.trim() || "Your name"}
+                            </div>
+                          </>
+                        )}
+                        {ink ? (
+                          <img src={ink.dataUrl} alt="" style={{
+                            position: "absolute", left: 0, width: "100%",
+                            bottom: printedName === "under" ? INK_OFFSET * scale : 0,
+                          }} />
+                        ) : (
+                          <span className="micro" style={{ position: "absolute", left: 4, top: 3, fontSize: 9, color: "#ae1800" }}>
+                            Signature here
+                          </span>
+                        )}
+                        {signing && (
+                          <>
+                            {/* Remove this one mark, so a signature on the wrong page costs
+                                one click rather than clearing everything. */}
+                            <button type="button" aria-label={`Remove signature on page ${box.page + 1}`}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); removeBox(i); }}
+                              style={{
+                                position: "absolute", right: -9, top: -9, width: 18, height: 18, padding: 0,
+                                display: "grid", placeItems: "center", cursor: "pointer",
+                                background: "#ec3013", color: "#f3f2f2", border: 0, lineHeight: 1, fontSize: 12,
+                              }}>
+                              ×
+                            </button>
+                            <span
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelected(i); drag.current = { kind: "resize", index: i }; }}
+                              style={{ position: "absolute", right: -5, bottom: -5, width: 12, height: 12, background: "#ec3013", cursor: "nwse-resize" }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ),
+                  )}
               </div>
             </div>
 
@@ -368,7 +432,7 @@ export default function Signer({ token }: { token: string }) {
               }}>
                 <h2 style={{ fontSize: 20, margin: "0 0 6px" }}>Sign the document</h2>
                 <p style={{ fontSize: 13, color: MUTED, margin: "0 0 20px" }}>
-                  Your name and signature appear where you placed the box — at that exact size.
+                  Your name and signature appear at every box you placed — at that exact size.
                 </p>
 
                 {conflict && (
@@ -438,8 +502,9 @@ export default function Signer({ token }: { token: string }) {
   );
 }
 
-function StateBand({ phase, view, box, onClear, signedAt, remaining, token }: {
-  phase: Phase; view: SignerView | null; box: Box | null; onClear: () => void;
+function StateBand({ phase, view, boxes, selected, onClear, onEveryPage, pageCount, signedAt, remaining, token }: {
+  phase: Phase; view: SignerView | null; boxes: Box[]; selected: number;
+  onClear: () => void; onEveryPage: () => void; pageCount: number;
   signedAt: string | null; remaining: number; token: string;
 }) {
   if (phase === "wait") {
@@ -455,7 +520,7 @@ function StateBand({ phase, view, box, onClear, signedAt, remaining, token }: {
       </div>
     );
   }
-  if (phase === "place") {
+  if (boxes.length === 0 && phase !== "done") {
     return (
       <div style={{ background: "#fff2ef", borderBottom: "2px solid #ec3013", padding: "14px clamp(14px,4vw,28px)" }}>
         <p style={{ font: "800 15px/1.3 Archivo, sans-serif", color: "#7c1405", margin: "0 0 4px" }}>
@@ -486,18 +551,31 @@ function StateBand({ phase, view, box, onClear, signedAt, remaining, token }: {
       </div>
     );
   }
+  const box = boxes[selected] ?? boxes[0];
+  const pagesUsed = new Set(boxes.map((b) => b.page)).size;
   return (
     <div style={{ background: "#eae9e9", borderBottom: `2px solid ${DIVIDER}`, padding: "12px clamp(14px,4vw,28px)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-      <span style={{ fontSize: 13.5 }}>Drag the box to adjust. The corner handle resizes it.</span>
+      <span style={{ fontSize: 13.5 }}>
+        <strong style={{ font: "800 13.5px/1.4 Archivo, sans-serif" }}>
+          {boxes.length} {boxes.length === 1 ? "mark" : "marks"} on {pagesUsed} of {pageCount} {pagesUsed === 1 ? "page" : "pages"}.
+        </strong>{" "}
+        Click to add another, drag to adjust, × to remove.
+      </span>
       {box && (
         <code style={{ fontSize: 12, color: MUTED, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
           x {box.x.toFixed(2)} · y {box.y.toFixed(2)} · w {box.w.toFixed(2)} · page {box.page + 1}
         </code>
       )}
-      <button type="button" className="btn btn-secondary btn-center" style={{ marginLeft: "auto", height: 34 }}
-        onClick={onClear}>
-        Clear placement
-      </button>
+      <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {pagesUsed < pageCount && (
+          <button type="button" className="btn btn-secondary btn-center" style={{ height: 34 }} onClick={onEveryPage}>
+            Add to every page
+          </button>
+        )}
+        <button type="button" className="btn btn-secondary btn-center" style={{ height: 34 }} onClick={onClear}>
+          Clear all
+        </button>
+      </span>
     </div>
   );
 }

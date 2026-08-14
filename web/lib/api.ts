@@ -81,7 +81,7 @@ export const submitSignature = (
     name: string;
     signaturePng: string;
     printedName: "under" | "none";
-    placement: { page: number; x: number; y: number; w: number };
+    placements: { page: number; x: number; y: number; w: number }[];
   },
 ) =>
   request<{ status: string; docStatus: string; signedAt: string }>(`/api/sign/${token}`, {

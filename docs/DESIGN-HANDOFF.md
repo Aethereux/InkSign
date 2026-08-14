@@ -5,6 +5,9 @@
 > tier. §2, §4, §12 and §15 below are already updated. **(2) The audit trail is cut**
 > per the design pass — no `events` table, no `ip`/`user_agent` logging anywhere.
 > Where this document and `DESIGN-BUNDLE.md` disagree, **the design bundle wins**.
+> **(3) `POST /api/sign/:token` now takes `placements: Placement[]`, not a single
+> `placement`** — a signer can mark several pages in one submission. The singular field is
+> still accepted. §5 and §6 below describe the original single-placement shape.
 
 > **Audience:** Claude Design, working interactively to design and implement this app.
 > **Author:** upstream planning pass. **Status:** decisions locked, ready to build.
